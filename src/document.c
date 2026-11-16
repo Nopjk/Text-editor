@@ -1,15 +1,15 @@
 #include <string.h>
-#include "la.h"
+#include "mathExt.h"
 #include "document.h"
 
-#define LINE_INIT_CAPACITY 1024
+#define LINE_INIT_CAPACITY 1024 
 #define DOCUMENT_INIT_CAPACITY 1
 
-void LineGrow(Line *line, size_t n) {
+void LineGrow(Line *line, size_t textSize) {
     size_t newCapacity = line->capacity;
 
     if (line->capacity == 0) { newCapacity = LINE_INIT_CAPACITY; }
-    while (newCapacity < line->size + n) {
+    while (newCapacity < line->size + textSize) {
         newCapacity *= 2;
     }
     if (newCapacity != line->capacity) {
@@ -33,13 +33,13 @@ void WriteLine(Line *line, const char *text, const size_t col) {
     WriteLineSized(line, text, textSize, col);
 }
 
-void DeleteText(Line *line, const size_t col, size_t n) {
-    n = clamp(n, 0, line->size - col);
+void DeleteText(Line *line, const size_t col, size_t textSize) {
+    textSize = clamp(textSize, 0, line->size - col);
     if (col < line->size && line->size > 0) {
         memmove(line->chars + col,
-                line->chars + col + n,
+                line->chars + col + textSize,
                 line->size - col);
-        line->size -= n;
+        line->size -= textSize;
     }
 }
 
@@ -49,11 +49,11 @@ void DeleteChar(Line *line, const size_t col) {
 
 
 
-void DocumentGrow(Document *document, size_t n) {
+void DocumentGrow(Document *document, size_t newLinesCount) {
     size_t newCapacity = document->capacity;
 
     if (document->capacity == 0) { newCapacity = DOCUMENT_INIT_CAPACITY; }
-    if (newCapacity < document->linesCount + n) {
+    while (newCapacity < document->linesCount + newLinesCount) {
         newCapacity *= 2;
     }
     if (newCapacity != document->capacity) {
@@ -64,7 +64,7 @@ void DocumentGrow(Document *document, size_t n) {
 
 void AppendLine(Document *document) {
     Line line = {0};
-    DocumentGrow(document, sizeof(line));
+    DocumentGrow(document, 1);
 
     document->lines[document->linesCount] = line;
     document->linesCount += 1;
@@ -72,7 +72,7 @@ void AppendLine(Document *document) {
 
 void AppendLineAt(Document *document, size_t row) {
     Line line = {0};
-    DocumentGrow(document, sizeof(line));
+    DocumentGrow(document, 1);
 
     row = clamp(row, 0, document->linesCount + 1);
     memmove(document->lines + row + 1,

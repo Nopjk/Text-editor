@@ -1,4 +1,4 @@
-#include "la.h"
+#include "mathExt.h"
 #include "cursor.h"
 
 void CursorSetPos(const Document *document, Cursor *cursor, ssize_t x, ssize_t y) {

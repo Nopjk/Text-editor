@@ -15,13 +15,13 @@ typedef struct {
     size_t capacity;
 } Document;
 
-void LineGrow(Line *line, size_t n);
+void LineGrow(Line *line, size_t textSize);
 void WriteLineSized(Line *line, const char *text, const size_t textSize, const size_t col);
 void WriteLine(Line *line, const char *text, const size_t col);
 void DeleteText(Line *line, const size_t col, const size_t n);
 void DeleteChar(Line *line, const size_t col);
 
-void DocumentGrow(Document *document, size_t n);
+void DocumentGrow(Document *document, size_t newLinesCount);
 void AppendLine(Document *document);
 void AppendLineAt(Document *document, size_t row);
 void RemoveLineAt(Document *document, size_t row);

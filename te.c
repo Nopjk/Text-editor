@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include "SDL3/SDL.h"
 
-#include "la.h"
+#include "mathExt.h"
 
 #include "document.h"
 #include "cursor.h"
-#include "fileManagement.h"
+#include "saveLoad.h"
 
 #include "assets/font.h"
 
@@ -101,18 +101,18 @@ void RenderText(SDL_Renderer *renderer, const Font *font, const float fontScale,
     RenderTextSized(renderer, font, fontScale, color, text, strlen(text), pos);
 }
 
-void RenderDocument(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color, Document *document, Vector2Float cameraPos) {
+void RenderDocument(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color, Document *document, Vector2Float offset) {
     for (size_t i = 0; i < document->linesCount; i++) {
         Vector2Float linePos = vec2f(0, FONT_CHAR_HEIGHT * fontScale* i);
-        linePos = Vec2Sub(linePos, cameraPos);
+        linePos = Vec2Add(linePos, offset);
         RenderTextSized(renderer, font, fontScale, color, document->lines[i].chars, document->lines[i].size, linePos);
     }
 }
 
-void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, Document *document, Cursor cursor, Vector2Float cameraPos) {
+void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, Document *document, Cursor cursor, Vector2Float offset) {
     Vector2Float pos = vec2f(cursor.x * FONT_CHAR_WIDTH * fontScale,
                              cursor.y * FONT_CHAR_HEIGHT * fontScale);
-    pos = Vec2Sub(pos, cameraPos);
+    pos = Vec2Add(pos, offset);
 
     SDL_FRect rect = {
         .x = pos.x,
@@ -293,8 +293,9 @@ int main(int argc, char **argv) {
 
         MoveCamera(window, &cameraPos, &cursor);
 
-        RenderDocument(renderer, &font, fontScale, 0xFFFFFFFF, &document, cameraPos);
-        RenderCursor(renderer, &font, fontScale, &document, cursor, cameraPos);
+        Vector2Float offset = { -cameraPos.x, -cameraPos.y };
+        RenderDocument(renderer, &font, fontScale, 0xFFFFFFFF, &document, offset );
+        RenderCursor(renderer, &font, fontScale, &document, cursor, offset );
 
         scc(SDL_RenderPresent(renderer));
     }

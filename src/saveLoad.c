@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "fileManagement.h"
+#include "saveLoad.h"
 
 #define ASCII_DISPLAY_LOW 32
 #define ASCII_DISPLAY_HIGH 126
@@ -17,31 +17,30 @@ bool LoadFile(Document *document, const char *filePath) {
     const size_t capacity = ftell(file);
     fseek(file, 0, SEEK_SET);
     char *buffer = malloc(capacity);
-    size_t bufferSize = fread(buffer, 1, capacity, file);
+    const size_t bufferSize = fread(buffer, 1, capacity, file);
     fclose(file);
 
     char *str = buffer;
     size_t strSize = 0;
-    size_t line = 0;
+    size_t currentLine = 0;
     for (size_t i = 0; i < bufferSize; i++) {
         if (buffer[i] == '\r') {
             AppendLine(document);
-            WriteLineSized(&document->lines[line], str, strSize, 0);
+            WriteLineSized(&document->lines[currentLine], str, strSize, 0);
             strSize = 0;
-            line += 1;
+            currentLine += 1;
             str = &buffer[i + 2];
             i++;
         }
-        else if (buffer[i] >= ASCII_DISPLAY_LOW && buffer[i] <= ASCII_DISPLAY_HIGH){
-            strSize++;
-        }
         else {
             strSize++;
+        }
+        if (buffer[i] <= ASCII_DISPLAY_LOW && buffer[i] >= ASCII_DISPLAY_HIGH){
             printf("Unknown character (ASCII): %d\n", buffer[i]);
         }
     }
     AppendLine(document);
-    WriteLineSized(&document->lines[line], str, strSize, 0);
+    WriteLineSized(&document->lines[currentLine], str, strSize, 0);
     free(buffer);
 
     return true;

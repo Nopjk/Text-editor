@@ -1,5 +1,5 @@
-#ifndef LA_H_
-#define LA_H_
+#ifndef MATH_EXT_H_
+#define MATH_EXT_H_
 
 float clamp(float x, float min, float max);
 
@@ -13,4 +13,4 @@ Vector2Float Vec2Sub(const Vector2Float a, const Vector2Float b);
 Vector2Float Vec2Mult(const Vector2Float a, const Vector2Float b);
 Vector2Float Vec2Div(const Vector2Float a, const Vector2Float b);
 
-#endif // LA_H_
+#endif // MATH_EXT_H_
