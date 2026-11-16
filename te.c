@@ -1,16 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "SDL3/SDL.h"
+
 #include "la.h"
 
-#include "src/document.h"
-#include "src/cursor.h"
-#include "src/fileManagement.h"
+#include "document.h"
+#include "cursor.h"
+#include "fileManagement.h"
 
 #include "assets/font.h"
-
-#define WIDTH  800
-#define HEIGHT 600
 
 #define ASCII_DISPLAY_LOW 32
 #define ASCII_DISPLAY_HIGH 126
@@ -84,10 +82,7 @@ void RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale,
     };
     size_t index = c - ASCII_DISPLAY_LOW;
 
-    // assert(c >= ASCII_DISPLAY_LOW);
-    // assert(c <= ASCII_DISPLAY_HIGH);
     if (c < ASCII_DISPLAY_LOW || c > ASCII_DISPLAY_HIGH) {
-        // printf("Unknown character: %d\n", c);
         index = '?' - ASCII_DISPLAY_LOW;
     }
     scc(SDL_RenderTexture(renderer, font->spritesheet, &font->glyph_table[index], &dst));
@@ -148,46 +143,71 @@ void MoveCamera(SDL_Window *window, Vector2Float *cameraPos, const Cursor *curso
 
     size_t windowBottomBorderPos = cameraPos->y + h;
     ssize_t botDiff = windowBottomBorderPos - (cursorPosY + FONT_CHAR_HEIGHT * fontScale);
-    if (botDiff < minDiff)
-    {
+    if (botDiff < minDiff) {
         cameraPos->y += minDiff - botDiff;
     }
 
     size_t windowTopBorderPos = cameraPos->y;
     ssize_t topDiff = cursorPosY - windowTopBorderPos;
-    if (topDiff < minDiff)
-    {
+    if (topDiff < minDiff) {
         cameraPos->y -= minDiff - topDiff;
-        if (cameraPos->y < 0)
-        {
+        if (cameraPos->y < 0) {
             cameraPos->y = 0;
         }
     }
 
+    size_t charsPadding = 10;
+    minDiff = FONT_CHAR_WIDTH * fontScale * charsPadding;
     size_t windowRightBorderPos = cameraPos->x + w;
     ssize_t rightDiff = windowRightBorderPos - (cursorPosX + FONT_CHAR_WIDTH * fontScale);
-    if (rightDiff < minDiff)
-    {
+    if (rightDiff < minDiff) {
         cameraPos->x += minDiff - rightDiff;
     }
 
     size_t windowLeftBorderPos = cameraPos->x;
     ssize_t leftDiff = cursorPosX - windowLeftBorderPos;
-    if (leftDiff < minDiff)
-    {
+    if (leftDiff < minDiff) {
         cameraPos->x -= minDiff - leftDiff;
-        if (cameraPos->x < 0)
-        {
+        if (cameraPos->x < 0) {
             cameraPos->x = 0;
         }
     }
+}
+
+void Backspace(Document *document, Cursor *cursor) {
+    if (cursor->x > 0) {
+        DeleteChar(&document->lines[cursor->y], cursor->x - 1);
+        CursorMove(document, cursor, -1, 0);
+    }
+    else if (cursor->y > 0) {
+        CursorSetPos(document, cursor, document->lines[cursor->y - 1].size, cursor->y - 1);
+        const char *text = document->lines[cursor->y + 1].chars;
+        const size_t textSize = document->lines[cursor->y + 1].size;
+        WriteLineSized(&document->lines[cursor->y],
+                       text,
+                       textSize,
+                       cursor->x);
+        RemoveLineAt(document, cursor->y + 1);
+    }
+}
+
+void Return(Document *document, Cursor *cursor) {
+    AppendLineAt(document, cursor->y + 1);
+    const char *text = document->lines[cursor->y].chars + cursor->x;
+    const size_t textSize = document->lines[cursor->y].size - cursor->x;
+    WriteLineSized(&document->lines[cursor->y + 1],
+                   text,
+                   textSize,
+                   0);
+    DeleteText(&document->lines[cursor->y], cursor->x, textSize);
+    CursorSetPos(document, cursor, 0, cursor->y + 1);
 }
 
 int main(int argc, char **argv) {
     scc(SDL_Init(SDL_INIT_VIDEO));
     SDL_Window   *window;
     SDL_Renderer *renderer;
-    scc(SDL_CreateWindowAndRenderer("te", WIDTH, HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer));
+    scc(SDL_CreateWindowAndRenderer("te", 800, 600, SDL_WINDOW_RESIZABLE, &window, &renderer));
     const Font font = LoadFont(renderer);
     scc(SDL_StartTextInput(window));
 
@@ -199,14 +219,8 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         filePath = argv[1];
 
-        if (LoadFile(&document, filePath)) {
-            printf("Successfully loaded file %s\n", filePath);
-        }
-        else {
-            // printf("Error loading file %s\n", filePath);
-            fprintf(stderr, "Error loading file %s\n", filePath);
-            return 0;
-        }
+        if (LoadFile(&document, filePath)) { fprintf(stdout, "Successfully loaded file %s\n", filePath); }
+        else                               { fprintf(stderr, "Error loading file %s\n", filePath); return 0; }
     }
     else {
         AppendLine(&document);
@@ -226,10 +240,10 @@ int main(int argc, char **argv) {
 
                 case SDL_EVENT_KEY_DOWN: {
                     switch (event.key.key) {
-                        case SDLK_UP:    { CursorMove(&document, &cursor, 0, -1); } break;
-                        case SDLK_DOWN:  { CursorMove(&document, &cursor, 0, 1);  } break;
-                        case SDLK_LEFT:  { CursorMove(&document, &cursor, -1, 0); } break;
-                        case SDLK_RIGHT: { CursorMove(&document, &cursor, 1, 0);  } break;
+                        case SDLK_UP:    { CursorMove(&document, &cursor,  0, -1); } break;
+                        case SDLK_DOWN:  { CursorMove(&document, &cursor,  0,  1); } break;
+                        case SDLK_LEFT:  { CursorMove(&document, &cursor, -1,  0); } break;
+                        case SDLK_RIGHT: { CursorMove(&document, &cursor,  1,  0); } break;
                         case SDLK_TAB: {
                             WriteLine(&document.lines[cursor.y], "\t", cursor.x);
                             CursorMove(&document, &cursor, 1, 0);
@@ -239,31 +253,10 @@ int main(int argc, char **argv) {
                             DeleteChar(&document.lines[cursor.y], cursor.x);
                         } break;
                         case SDLK_BACKSPACE: {
-                            if (cursor.x > 0) {
-                                DeleteChar(&document.lines[cursor.y], cursor.x - 1);
-                                CursorMove(&document, &cursor, -1, 0);
-                            }
-                            else if (cursor.y > 0) {
-                                CursorSetPos(&document, &cursor, document.lines[cursor.y - 1].size, cursor.y - 1);
-                                const char *text = document.lines[cursor.y + 1].chars;
-                                const size_t textSize = document.lines[cursor.y + 1].size;
-                                WriteLineSized(&document.lines[cursor.y],
-                                               text,
-                                               textSize,
-                                               cursor.x);
-                                RemoveLineAt(&document, cursor.y + 1);
-                            }
+                            Backspace(&document, &cursor);
                         } break;
                         case SDLK_RETURN: {
-                            AppendLineAt(&document, cursor.y + 1);
-                            const char *text = document.lines[cursor.y].chars + cursor.x;
-                            const size_t textSize = document.lines[cursor.y].size - cursor.x;
-                            WriteLineSized(&document.lines[cursor.y + 1],
-                                           text,
-                                           textSize,
-                                           0);
-                            DeleteText(&document.lines[cursor.y], cursor.x, textSize);
-                            CursorSetPos(&document, &cursor, 0, cursor.y + 1);
+                            Return(&document, &cursor);
                         } break;
 
                         case SDLK_EQUALS: {
@@ -281,14 +274,8 @@ int main(int argc, char **argv) {
 
                         case SDLK_S: {
                             if (event.key.mod & SDL_KMOD_CTRL) {
-                                if (SaveFile(&document, filePath)) {
-                                    printf("Successfully saved file %s\n", filePath);
-                                }
-                                else {
-                                    // printf("Error saving file %s\n", filePath);
-                                    fprintf(stderr, "Error saving file %s\n", filePath);
-                                    // return 0;
-                                }
+                                if (SaveFile(&document, filePath)) { fprintf(stdout, "Successfully saved file %s\n", filePath); }
+                                else                               { fprintf(stderr, "Error saving file %s\n", filePath); }
                             }
                         } break;
                     }
