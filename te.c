@@ -9,6 +9,8 @@
 #include "saveLoad.h"
 
 #include "assets/font.h"
+#include "assets/icon.h"
+// #include "assets/fontComicSans.h"
 
 #define ASCII_DISPLAY_LOW 32
 #define ASCII_DISPLAY_HIGH 126
@@ -35,6 +37,17 @@ void *scp(void *ptr) {
     return ptr;
 }
 
+void SetIcon(SDL_Window *window) {
+    SDL_Surface *icon = scp(SDL_CreateSurfaceFrom(ICON_TEXTURE_WIDTH,
+                                                  ICON_TEXTURE_HEIGHT,
+                                                  SDL_PIXELFORMAT_RGBA8888,
+                                                  ICON,
+                                                  ICON_TEXTURE_WIDTH * 4));
+    icon = SDL_ScaleSurface(icon, 128, 128, SDL_SCALEMODE_NEAREST);
+    scc(SDL_SetSurfaceColorKey(icon, true, 0x000000FF));
+    scc(SDL_SetWindowIcon(window, icon));
+}
+
 typedef struct {
     SDL_Texture *spritesheet;
     SDL_FRect glyph_table[ASCII_DISPLAY_HIGH - ASCII_DISPLAY_LOW + 1];
@@ -42,7 +55,11 @@ typedef struct {
 
 Font LoadFont(SDL_Renderer *renderer) {
     Font font = {0};
-    SDL_Surface *surface = scp(SDL_CreateSurfaceFrom(FONT_TEXTURE_WIDTH, FONT_TEXTURE_HEIGHT, SDL_PIXELFORMAT_RGBA8888, FONT, FONT_TEXTURE_WIDTH*4));
+    SDL_Surface *surface = scp(SDL_CreateSurfaceFrom(FONT_TEXTURE_WIDTH,
+                                                     FONT_TEXTURE_HEIGHT,
+                                                     SDL_PIXELFORMAT_RGBA8888,
+                                                     FONT,
+                                                     FONT_TEXTURE_WIDTH * 4));
     scc(SDL_SetSurfaceColorKey(surface, true, 0x000000FF));
     font.spritesheet = scp(SDL_CreateTextureFromSurface(renderer, surface));
     scc(SDL_SetTextureScaleMode(font.spritesheet, SDL_SCALEMODE_NEAREST));
@@ -194,7 +211,9 @@ int main(int argc, char **argv) {
     scc(SDL_Init(SDL_INIT_VIDEO));
     SDL_Window   *window;
     SDL_Renderer *renderer;
-    scc(SDL_CreateWindowAndRenderer("te", 800, 600, SDL_WINDOW_RESIZABLE, &window, &renderer));
+    scc(SDL_CreateWindowAndRenderer("tyokst", 800, 600, SDL_WINDOW_RESIZABLE, &window, &renderer));
+
+    SetIcon(window);
     const Font font = LoadFont(renderer);
     scc(SDL_StartTextInput(window));
 

@@ -34,8 +34,7 @@ void WriteText(Document *document, const char *text, const size_t pos) {
 
 void DeleteText(Document *document, const size_t pos, const size_t textSize) {
     if (textSize > document->size - pos) {
-        // textSize = document->size - pos;
-        document->size -= textSize;
+        document->size -= document->size - pos;
         return;
     }
 
