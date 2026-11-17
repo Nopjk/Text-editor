@@ -5,7 +5,7 @@
 #define ASCII_DISPLAY_HIGH 126
 
 bool LoadFile(Document *document, const char *filePath) {
-    document->linesCount = 0;
+    document->size = 0;
 
     FILE *file = fopen(filePath, "rb");
     if (file == NULL) { 
@@ -20,27 +20,7 @@ bool LoadFile(Document *document, const char *filePath) {
     const size_t bufferSize = fread(buffer, 1, capacity, file);
     fclose(file);
 
-    char *str = buffer;
-    size_t strSize = 0;
-    size_t currentLine = 0;
-    for (size_t i = 0; i < bufferSize; i++) {
-        if (buffer[i] == '\r') {
-            AppendLine(document);
-            WriteLineSized(&document->lines[currentLine], str, strSize, 0);
-            strSize = 0;
-            currentLine += 1;
-            str = &buffer[i + 2];
-            i++;
-        }
-        else {
-            strSize++;
-        }
-        if (buffer[i] <= ASCII_DISPLAY_LOW && buffer[i] >= ASCII_DISPLAY_HIGH){
-            printf("Unknown character (ASCII): %d\n", buffer[i]);
-        }
-    }
-    AppendLine(document);
-    WriteLineSized(&document->lines[currentLine], str, strSize, 0);
+    WriteTextSized(document, buffer, bufferSize, 0);
     free(buffer);
 
     return true;
@@ -53,16 +33,7 @@ bool SaveFile(Document *document, const char *filePath) {
         return false;
     }
 
-    for (size_t i = 0; i < document->linesCount; i++) {
-        const char *str = document->lines[i].chars;
-        for (size_t n = 0; n < document->lines[i].size; n++) {
-            putc(str[n], file);
-        }
-        if (i + 1 < document->linesCount) {
-            putc('\r', file);
-            putc('\n', file);
-        }
-    }
+    fwrite(document->chars, sizeof(char), document->size, file);
     fclose(file);
 
     return true;

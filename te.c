@@ -64,15 +64,6 @@ Font LoadFont(SDL_Renderer *renderer) {
     return font;
 }
 
-void SetTextureColor(SDL_Texture *texture, const uint32_t color) {
-    scc(SDL_SetTextureColorMod(texture,
-                           (color >> (8 * 3)) & 0xFF,
-                           (color >> (8 * 2)) & 0xFF,
-                           (color >> (8 * 1)) & 0xFF));
-    scc(SDL_SetTextureAlphaMod(texture, 
-                           (color >> (8 * 0)) & 0xFF));
-}
-
 void RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale, const char c, const Vector2Float pos) {
     SDL_FRect dst = {
         .x = pos.x,
@@ -88,24 +79,33 @@ void RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale,
     scc(SDL_RenderTexture(renderer, font->spritesheet, &font->glyph_table[index], &dst));
 }
 
-void RenderTextSized(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color, const char *text, const size_t size, Vector2Float pos) {
-    SetTextureColor(font->spritesheet, color);
-
-    for (size_t i = 0; i < size; i++) {
-        RenderChar(renderer, font, fontScale, text[i], pos);
-        pos.x += FONT_CHAR_WIDTH * fontScale;
-    }
-}
-
-void RenderText(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color, const char *text, Vector2Float pos) {
-    RenderTextSized(renderer, font, fontScale, color, text, strlen(text), pos);
+void SetTextureColor(SDL_Texture *texture, uint32_t color) {
+    scc(SDL_SetTextureColorMod(texture,
+                           (color >> (8 * 3)) & 0xFF,
+                           (color >> (8 * 2)) & 0xFF,
+                           (color >> (8 * 1)) & 0xFF));
+    scc(SDL_SetTextureAlphaMod(texture, 
+                           (color >> (8 * 0)) & 0xFF));
 }
 
 void RenderDocument(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color, Document *document, Vector2Float offset) {
-    for (size_t i = 0; i < document->linesCount; i++) {
-        Vector2Float linePos = vec2f(0, FONT_CHAR_HEIGHT * fontScale* i);
-        linePos = Vec2Add(linePos, offset);
-        RenderTextSized(renderer, font, fontScale, color, document->lines[i].chars, document->lines[i].size, linePos);
+    SetTextureColor(font->spritesheet, color);
+
+    const Vector2Float charSize = { FONT_CHAR_WIDTH * fontScale, FONT_CHAR_HEIGHT * fontScale };
+    Vector2Float charPos = { 0, 0 };
+    for (size_t i = 0; i < document->size; i++) {
+        const char c = document->chars[i];
+        if (c == '\r') {
+            charPos.x = 0;
+        }
+        else if (c == '\n') {
+            charPos.y += 1;
+        }
+        else {
+            const Vector2Float pos = Vec2Add(Vec2Mult(charPos, charSize), offset);
+            RenderChar(renderer, font, fontScale, c, pos);
+            charPos.x += 1;
+        }
     }
 }
 
@@ -124,9 +124,9 @@ void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, Doc
     scc(SDL_SetRenderDrawColor(renderer, UNHEX(0xFFFFFFFF)));
     scc(SDL_RenderFillRect(renderer, &rect));
 
-    if (cursor.x < document->lines[cursor.y].size) {
+    if (document->chars[cursor.pos] != '\r' && cursor.pos != document->size) {
         SetTextureColor(font->spritesheet, 0x000000FF);
-        RenderChar(renderer, font, fontScale, document->lines[cursor.y].chars[cursor.x], pos);
+        RenderChar(renderer, font, fontScale, document->chars[cursor.pos], pos);
     }
 }
 
@@ -176,31 +176,18 @@ void MoveCamera(SDL_Window *window, Vector2Float *cameraPos, const Cursor *curso
 
 void Backspace(Document *document, Cursor *cursor) {
     if (cursor->x > 0) {
-        DeleteChar(&document->lines[cursor->y], cursor->x - 1);
-        CursorMove(document, cursor, -1, 0);
+        DeleteChar(document, cursor->pos - 1);
+        CursorMoveLeft(document, cursor, 1);
     }
     else if (cursor->y > 0) {
-        CursorSetPos(document, cursor, document->lines[cursor->y - 1].size, cursor->y - 1);
-        const char *text = document->lines[cursor->y + 1].chars;
-        const size_t textSize = document->lines[cursor->y + 1].size;
-        WriteLineSized(&document->lines[cursor->y],
-                       text,
-                       textSize,
-                       cursor->x);
-        RemoveLineAt(document, cursor->y + 1);
+        DeleteText(document, cursor->pos - 2, 2);
+        CursorSetPos(document, cursor, cursor->pos - 2);
     }
 }
 
 void Return(Document *document, Cursor *cursor) {
-    AppendLineAt(document, cursor->y + 1);
-    const char *text = document->lines[cursor->y].chars + cursor->x;
-    const size_t textSize = document->lines[cursor->y].size - cursor->x;
-    WriteLineSized(&document->lines[cursor->y + 1],
-                   text,
-                   textSize,
-                   0);
-    DeleteText(&document->lines[cursor->y], cursor->x, textSize);
-    CursorSetPos(document, cursor, 0, cursor->y + 1);
+    WriteText(document, "\r\n", cursor->pos);
+    CursorSetPos(document, cursor, cursor->pos + 2);
 }
 
 int main(int argc, char **argv) {
@@ -223,10 +210,9 @@ int main(int argc, char **argv) {
         else                               { fprintf(stderr, "Error loading file %s\n", filePath); return 0; }
     }
     else {
-        AppendLine(&document);
         const char startupMessage[] = "Hello, world!";
-        WriteLine(&document.lines[0], startupMessage, 0);
-        CursorMove(&document, &cursor, strlen(startupMessage), 0);
+        WriteText(&document, startupMessage, 0);
+        CursorMoveRight(&document, &cursor, strlen(startupMessage));
     }
 
     bool quit = false;
@@ -240,17 +226,19 @@ int main(int argc, char **argv) {
 
                 case SDL_EVENT_KEY_DOWN: {
                     switch (event.key.key) {
-                        case SDLK_UP:    { CursorMove(&document, &cursor,  0, -1); } break;
-                        case SDLK_DOWN:  { CursorMove(&document, &cursor,  0,  1); } break;
-                        case SDLK_LEFT:  { CursorMove(&document, &cursor, -1,  0); } break;
-                        case SDLK_RIGHT: { CursorMove(&document, &cursor,  1,  0); } break;
+                        case SDLK_UP:    { CursorMoveUp(&document, &cursor, 1); } break;
+                        case SDLK_DOWN:  { CursorMoveDown(&document, &cursor, 1); } break;
+                        case SDLK_LEFT:  { CursorMoveLeft(&document, &cursor, 1); } break;
+                        case SDLK_RIGHT: { CursorMoveRight(&document, &cursor, 1); } break;
                         case SDLK_TAB: {
-                            WriteLine(&document.lines[cursor.y], "\t", cursor.x);
-                            CursorMove(&document, &cursor, 1, 0);
+                            WriteText(&document, "\t", cursor.pos);
+                            CursorMoveRight(&document, &cursor, 1);
                         } break;
 
                         case SDLK_DELETE: {
-                            DeleteChar(&document.lines[cursor.y], cursor.x);
+                            if (document.chars[cursor.pos] != '\r') {
+                                DeleteChar(&document, cursor.pos);
+                            }
                         } break;
                         case SDLK_BACKSPACE: {
                             Backspace(&document, &cursor);
@@ -282,8 +270,8 @@ int main(int argc, char **argv) {
                 } break;
 
                 case SDL_EVENT_TEXT_INPUT: {
-                    WriteLine(&document.lines[cursor.y], event.text.text, cursor.x);
-                    CursorMove(&document, &cursor, strlen(event.text.text), 0);
+                    WriteText(&document, event.text.text, cursor.pos);
+                    CursorMoveRight(&document, &cursor, strlen(event.text.text));
                 } break;
             }
         }
@@ -293,6 +281,7 @@ int main(int argc, char **argv) {
 
         MoveCamera(window, &cameraPos, &cursor);
 
+        // printf("X: %zu, LastX: %zu, Y: %zu, Pos: %zu\n", cursor.x, cursor.lastX, cursor.y, cursor.pos);
         Vector2Float offset = { -cameraPos.x, -cameraPos.y };
         RenderDocument(renderer, &font, fontScale, 0xFFFFFFFF, &document, offset );
         RenderCursor(renderer, &font, fontScale, &document, cursor, offset );
@@ -301,5 +290,5 @@ int main(int argc, char **argv) {
     }
 
     SDL_Quit();
-	return 0;
+    return 0;
 }
