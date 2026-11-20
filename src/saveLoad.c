@@ -1,5 +1,7 @@
-#include <stdio.h>
 #include "saveLoad.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #define ASCII_DISPLAY_LOW 32
 #define ASCII_DISPLAY_HIGH 126
