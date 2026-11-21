@@ -6,6 +6,7 @@
 
 typedef struct {
     size_t pos;
+    size_t x, y;
     size_t lastX;
 } Cursor;
 

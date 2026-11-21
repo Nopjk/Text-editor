@@ -14,8 +14,10 @@ void SetTextureColor(SDL_Texture *texture, uint32_t color);
 
 void SetIcon(SDL_Window *window, uint32_t *bitmap, size_t w, size_t h);
 
-void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, Vector2Float pos);
-float RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale, const char *text, const Vector2Float pos);
+void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, const uint32_t color,
+                  const Document *document, const Vector2Float offset, const Cursor *cursor);
+void RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale, const char *text, const Vector2Float pos);
 void RenderDocument(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color,
-                    Document *document, Cursor *cursor, Vector2Float offset);
+                    const Document *document, const Vector2Float offset);
+
 #endif // RENDERING_H_

@@ -38,19 +38,32 @@ void SetIcon(SDL_Window *window, uint32_t *bitmap, size_t w, size_t h) {
     scc(SDL_SetWindowIcon(window, icon));
 }
 
-void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, Vector2Float pos) {
+void RenderCursor(SDL_Renderer *renderer, const Font *font, float fontScale, const uint32_t color,
+                  const Document *document, const Vector2Float offset, const Cursor *cursor) {
+    Vector2Float pos = {
+        .x = cursor->x + offset.x,
+        .y = cursor->y + offset.y,
+    };
+
     SDL_FRect rect = {
-        .x = pos.x,
-        .y = pos.y,
-        .w = font->pixelHeight * fontScale * 0.75,
+        .x = pos.x * font->pixelWidth  * fontScale,
+        .y = pos.y * font->pixelHeight * fontScale * 1.25,
+        .w = font->pixelWidth  * fontScale,
         .h = font->pixelHeight * fontScale * 1.25,
     };
 
-    scc(SDL_SetRenderDrawColor(renderer, UNHEX(0xFFFFFFFF)));
+    scc(SDL_SetRenderDrawColor(renderer, UNHEX(color)));
     scc(SDL_RenderFillRect(renderer, &rect));
+    
+    char c = document->chars[cursor->pos];
+    if (c == '\r' || c == '\t' || cursor->pos == document->size) { return; }
+    for (size_t i = 0; i < font->spriteSheetsCount; i++) {
+        SetTextureColor(font->spriteSheets[i], 0x000000FF);
+    }
+    RenderChar(renderer, font, fontScale, &document->chars[cursor->pos], pos);
 }
 
-float RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale, const char *text, const Vector2Float pos) {
+void RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale, const char *text, const Vector2Float pos) {
     uint32_t c = GetUnicode(text);
     size_t index = '?' - ASCII_DISPLAY_LOW;
     
@@ -58,7 +71,8 @@ float RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale
         index = c - ASCII_DISPLAY_LOW;
     }
     if (CYRILLIC_DISPLAY_HIGH >= c && c >= CYRILLIC_DISPLAY_LOW) {
-        index = c - CYRILLIC_DISPLAY_LOW + (ASCII_DISPLAY_HIGH - ASCII_DISPLAY_LOW + 1);
+        index = c - CYRILLIC_DISPLAY_LOW +
+                (ASCII_DISPLAY_HIGH - ASCII_DISPLAY_LOW + 1);
     }
 
     Glyph glyph = font->glyphs[index];
@@ -72,55 +86,39 @@ float RenderChar(SDL_Renderer *renderer, const Font *font, const float fontScale
     // };
 
     SDL_FRect dst = {
-        .x = pos.x + (font->pixelHeight * 0.75 - glyph.rect.w) * fontScale / 2,
-        .y = pos.y + ((glyph.yoff + font->pixelHeight) * fontScale),
+        .x = (pos.x * font->pixelWidth  * fontScale) + (font->pixelWidth - glyph.rect.w) * fontScale / 2,
+        .y = (pos.y * font->pixelHeight * fontScale) * 1.25 + ((glyph.yoff + font->pixelHeight) * fontScale),
         .w = glyph.rect.w * fontScale,
         .h = glyph.rect.h * fontScale,
     };
     scc(SDL_RenderTexture(renderer, font->spriteSheets[glyph.spriteSheetIndex], &src, &dst));
-
-    return font->pixelHeight * fontScale * 0.75;
 }
 
 void RenderDocument(SDL_Renderer *renderer, const Font *font, const float fontScale, const uint32_t color,
-                    Document *document, Cursor *cursor, Vector2Float offset) {
+                    const Document *document, const Vector2Float offset) {
     for (size_t i = 0; i < font->spriteSheetsCount; i++) {
         SetTextureColor(font->spriteSheets[i], color);
     }
 
-    float vertPadding = 1.25;
-    Vector2Float cursorPos = { -1, -1 };
     Vector2Float charPos = offset;
-    charPos.y *= vertPadding;
     for (size_t i = 0; i < document->size;) {
         const char c = document->chars[i];
         const char *text = &document->chars[i];
 
         if (c == '\r') {
-            if (i == cursor->pos) { cursorPos = charPos; }
             charPos.x = offset.x;
         }
         else if (c == '\t') {
-            if (i == cursor->pos) { cursorPos = charPos; }
-            charPos.x += 4 * font->pixelHeight * fontScale * 0.75;
+            charPos.x += 4;
         }
         else if (c == '\n') {
-            charPos.y += font->pixelHeight * vertPadding * fontScale;
+            charPos.y += 1;
         }
         else {
-            if (i == cursor->pos) { cursorPos = charPos; }
-            charPos.x += RenderChar(renderer, font, fontScale, text, charPos);
+            RenderChar(renderer, font, fontScale, text, charPos);
+            charPos.x += 1;
         }
 
         i += UTF8GetCharBytesCount(text);
-    }
-
-    if (cursorPos.x == -1) { cursorPos = charPos; }
-    RenderCursor(renderer, font, fontScale, cursorPos);
-    if (document->chars[cursor->pos] != '\r' && document->chars[cursor->pos] != '\t' && cursor->pos != document->size) {
-        for (size_t i = 0; i < font->spriteSheetsCount; i++) {
-            SetTextureColor(font->spriteSheets[i], 0x000000FF);
-        }
-        RenderChar(renderer, font, fontScale, &document->chars[cursor->pos], cursorPos);
     }
 }

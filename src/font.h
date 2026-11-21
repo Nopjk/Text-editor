@@ -24,6 +24,7 @@ typedef struct {
     Glyph *glyphs;
     size_t glyphsCount;
     float pixelHeight;
+    float pixelWidth;
     SDL_Texture **spriteSheets;
     size_t spriteSheetsCount;
 } Font;
