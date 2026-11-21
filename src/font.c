@@ -47,7 +47,29 @@ void LoadCharsToFont(SDL_Renderer *renderer, Font *font, unsigned char *data, si
 
 }
 
-Font *LoadFont(SDL_Renderer *renderer, const char *filePath) {
+Font *LoadFont(SDL_Renderer *renderer, unsigned char *data) {
+    Font *font = malloc(sizeof(Font));
+    font->glyphs = malloc(sizeof(Glyph));
+    font->glyphsCount = 0;
+    font->pixelHeight = 64;
+    font->pixelWidth  = 48;
+    font->spriteSheets = malloc(sizeof(SDL_Texture));
+    font->spriteSheetsCount = 0;
+
+    size_t firstChar = ASCII_DISPLAY_LOW;
+    size_t lastChar  = ASCII_DISPLAY_HIGH;
+    size_t textureSize = 1024;
+    LoadCharsToFont(renderer, font, data, firstChar, lastChar - firstChar + 1, textureSize);
+
+    firstChar = CYRILLIC_DISPLAY_LOW;
+    lastChar  = CYRILLIC_DISPLAY_HIGH;
+    textureSize = 1024;
+    LoadCharsToFont(renderer, font, data, firstChar, lastChar - firstChar + 1, textureSize);
+
+    return font;
+}
+
+Font *LoadFontFromFile(SDL_Renderer *renderer, const char *filePath) {
     FILE *file = fopen(filePath, "rb");
     if (file == NULL) { 
         printf("Error opening file %s\n", filePath);
@@ -61,27 +83,7 @@ Font *LoadFont(SDL_Renderer *renderer, const char *filePath) {
     fread(data, 1, capacity, file);
     fclose(file);
 
-    Font *font = malloc(sizeof(Font));
-    font->glyphs = malloc(sizeof(Glyph));
-    font->glyphsCount = 0;
-    font->pixelHeight = 64;
-    font->pixelWidth  = 48; // 75% of height
-    font->spriteSheets = malloc(sizeof(SDL_Texture));
-    font->spriteSheetsCount = 0;
-
-    // size_t firstChar = 0x0020;
-    // size_t lastChar  = 0x007E;
-    size_t firstChar = ASCII_DISPLAY_LOW;
-    size_t lastChar  = ASCII_DISPLAY_HIGH;
-    size_t textureSize = 1024;
-    LoadCharsToFont(renderer, font, data, firstChar, lastChar - firstChar + 1, textureSize);
-
-    // firstChar = 0x0400;
-    // lastChar  = 0x045F;
-    firstChar = CYRILLIC_DISPLAY_LOW;
-    lastChar  = CYRILLIC_DISPLAY_HIGH;
-    textureSize = 1024;
-    LoadCharsToFont(renderer, font, data, firstChar, lastChar - firstChar + 1, textureSize);
+    Font *font = LoadFont(renderer, data);
 
     free(data);
 

@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "SDL3/SDL.h"
 
 #include "mathExt.h"
@@ -11,6 +10,7 @@
 #include "saveLoad.h"
 
 #include "assets/icon.h"
+#include "assets/baseFont.h"
 #include "assets/startupMessage.h"
 
 void Delete(Document *document, Cursor *cursor) {
@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
 
     SetIcon(window, ICON, ICON_TEXTURE_WIDTH, ICON_TEXTURE_HEIGHT);
 
+    Font *font = {0};
     Cursor cursor = {0};
     Document document = {0};
     Vector2Float camera = {0, 0};
@@ -95,10 +96,17 @@ int main(int argc, char **argv) {
         // CursorSetPos(&document, &cursor, strlen(startupMessage));
     }
 
-    const char *fontPath = "assets/F77 Minecraft.ttf";
-    // fontPath = "assets/Comic Sans MS.ttf";
-    if (argc > 2) { fontPath = argv[2]; }
-    Font *font = LoadFont(renderer, fontPath);
+
+    if (argc > 2) { 
+        const char *fontPath = argv[2]; 
+        font = LoadFontFromFile(renderer, fontPath);
+    }
+    else {
+        font = LoadFont(renderer, F77_Minecraft_ttf);
+        // const char *fontPath = "assets/F77 Minecraft.ttf";
+        // fontPath = "assets/Comic Sans MS.ttf";
+        // font = LoadFontFromFile(renderer, filePath);
+    }
     float fontScale = 26 / font->pixelHeight;
     float fontScaleStep = 1 / font->pixelHeight;
 

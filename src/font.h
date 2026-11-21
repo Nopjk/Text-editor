@@ -29,6 +29,7 @@ typedef struct {
     size_t spriteSheetsCount;
 } Font;
 
-Font *LoadFont(SDL_Renderer *renderer, const char *filePath);
+Font *LoadFont(SDL_Renderer *renderer, unsigned char *data);
+Font *LoadFontFromFile(SDL_Renderer *renderer, const char *filePath);
 
 #endif // FONT_H_
